@@ -185,17 +185,21 @@ class RAC_Calendar {
             return new WP_Error('rac_not_configured', __('API token not configured.', 'rentman-availability-calendar'));
         }
 
-        $appointments = $client->get_appointments_for_month($year, $month);
+        $projects = $client->get_projects_for_month($year, $month);
 
-        if (is_wp_error($appointments)) {
-            return $appointments;
+        if (is_wp_error($projects)) {
+            return $projects;
         }
 
         $day_counts = [];
         $day_details = [];
 
-        foreach ($appointments as $apt) {
-            $start = isset($apt['start']) ? $apt['start'] : '';
+        foreach ($projects as $project) {
+            if (!$this->is_relevant_project($project)) {
+                continue;
+            }
+
+            $start = isset($project['planperiod_start']) ? $project['planperiod_start'] : (isset($project['start']) ? $project['start'] : '');
             $day = $this->extract_day_from_date($start, $year, $month);
 
             if ($day === null) {
@@ -207,15 +211,17 @@ class RAC_Calendar {
             }
             $day_counts[$day]++;
 
-            $name = isset($apt['name']) ? $apt['name'] : (isset($apt['displayname']) ? $apt['displayname'] : '');
-            $end = isset($apt['end']) ? $apt['end'] : '';
-            $location = isset($apt['location']) ? $apt['location'] : '';
+            $name = isset($project['name']) ? $project['name'] : (isset($project['displayname']) ? $project['displayname'] : '');
+            $end = isset($project['planperiod_end']) ? $project['planperiod_end'] : (isset($project['end']) ? $project['end'] : '');
+            $location = isset($project['location']) ? $project['location'] : '';
+            $type = $this->get_project_type($project);
 
             $day_details[$day][] = [
                 'name'     => sanitize_text_field($name),
                 'start'    => sanitize_text_field($start),
                 'end'      => sanitize_text_field($end),
                 'location' => sanitize_text_field($location),
+                'type'     => sanitize_text_field($type),
             ];
         }
 
@@ -238,6 +244,47 @@ class RAC_Calendar {
             'monthLabel' => gmdate('F Y', gmmktime(0, 0, 0, $month, 1, $year)),
             'days'     => $days,
         ];
+    }
+
+    private function is_relevant_project($project) {
+        $type = $this->get_project_type($project);
+        $status = $this->get_project_status($project);
+
+        $relevant_types = ['Huwelijksfeest', 'Zakelijk-project'];
+        $relevant_statuses = ['Bevestigd', 'Confirmed'];
+
+        if (!in_array($type, $relevant_types, true)) {
+            return false;
+        }
+
+        if (!in_array($status, $relevant_statuses, true)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private function get_project_type($project) {
+        if (isset($project['type'])) {
+            return $project['type'];
+        }
+        if (isset($project['project_type'])) {
+            return $project['project_type'];
+        }
+        if (isset($project['category'])) {
+            return $project['category'];
+        }
+        return '';
+    }
+
+    private function get_project_status($project) {
+        if (isset($project['status'])) {
+            return $project['status'];
+        }
+        if (isset($project['project_status'])) {
+            return $project['project_status'];
+        }
+        return '';
     }
 
     private function extract_day_from_date($date_string, $year, $month) {

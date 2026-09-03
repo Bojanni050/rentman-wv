@@ -56,7 +56,11 @@ class RAC_API_Client {
     }
 
     public function get_appointments_for_month($year, $month) {
-        $cache_key = RAC_TRANSIENT_PREFIX . "appointments_{$year}_{$month}";
+        return $this->get_projects_for_month($year, $month);
+    }
+
+    public function get_projects_for_month($year, $month) {
+        $cache_key = RAC_TRANSIENT_PREFIX . "projects_{$year}_{$month}";
         $cached = get_transient($cache_key);
 
         if ($cached !== false && is_array($cached)) {
@@ -67,19 +71,19 @@ class RAC_API_Client {
         $last_day  = gmdate('Y-m-t', gmmktime(0, 0, 0, $month, 1, $year));
 
         $query_filter = [
-            'start' => [
+            'planperiod_start' => [
                 'gte' => $first_day . ' 00:00:00',
                 'lte' => $last_day . ' 23:59:59',
             ],
         ];
 
-        $all_appointments = [];
+        $all_projects = [];
         $offset = 0;
         $limit = 100;
         $max_pages = 50;
 
         for ($page = 0; $page < $max_pages; $page++) {
-            $response = $this->request('/appointments', [
+            $response = $this->request('/projects', [
                 'limit'  => $limit,
                 'offset' => $offset,
                 'query'  => wp_json_encode($query_filter),
@@ -95,7 +99,7 @@ class RAC_API_Client {
                 break;
             }
 
-            $all_appointments = array_merge($all_appointments, $data);
+            $all_projects = array_merge($all_projects, $data);
 
             if (count($data) < $limit) {
                 break;
@@ -104,9 +108,9 @@ class RAC_API_Client {
             $offset += $limit;
         }
 
-        set_transient($cache_key, $all_appointments, $this->cache_minutes * MINUTE_IN_SECONDS);
+        set_transient($cache_key, $all_projects, $this->cache_minutes * MINUTE_IN_SECONDS);
 
-        return $all_appointments;
+        return $all_projects;
     }
 
     private function request($endpoint, $params = []) {
