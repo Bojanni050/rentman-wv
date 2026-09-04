@@ -20,6 +20,14 @@ define('RAC_OPTION_KEY', 'rac_settings');
 define('RAC_TRANSIENT_PREFIX', 'rac_cache_');
 define('RAC_DEFAULT_CACHE_MINUTES', 15);
 
+// Security nonce action names
+if (!defined('RAC_CALENDAR_NONCE_ACTION')) {
+    define('RAC_CALENDAR_NONCE_ACTION', 'rac_calendar_nonce');
+}
+if (!defined('RAC_GF_NONCE_ACTION')) {
+    define('RAC_GF_NONCE_ACTION', 'rac_gf_nonce');
+}
+
 require_once RAC_PLUGIN_DIR . 'includes/class-rac-logger.php';
 require_once RAC_PLUGIN_DIR . 'includes/class-rac-api-client.php';
 require_once RAC_PLUGIN_DIR . 'includes/class-rac-settings.php';
@@ -61,6 +69,9 @@ class Rentman_Availability_Calendar {
         $widgets_manager->register(new RAC_Elementor_Widget());
     }
 
+    /**
+     * Registers plugin assets (CSS and JS)
+     */
     public function register_assets() {
         wp_register_style(
             'rac-calendar-style',
@@ -77,12 +88,22 @@ class Rentman_Availability_Calendar {
         );
         wp_localize_script('rac-calendar-script', 'racData', [
             'ajaxUrl' => admin_url('admin-ajax.php'),
-            'nonce'   => wp_create_nonce('rac_calendar_nonce'),
+            'nonce'   => wp_create_nonce(RAC_CALENDAR_NONCE_ACTION),
         ]);
     }
 
+    /**
+     * AJAX handler for fetching month availability data
+     * 
+     * @return void Outputs JSON response
+     */
     public function ajax_get_month_data() {
-        check_ajax_referer('rac_calendar_nonce', 'nonce');
+        // Verify nonce for security
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_key($_POST['nonce']), RAC_CALENDAR_NONCE_ACTION)) {
+            wp_send_json_error([
+                'message' => __('Security check failed. Please refresh the page.', 'rentman-availability-calendar')
+            ], 403);
+        }
 
         $year  = isset($_POST['year']) ? absint($_POST['year']) : (int) gmdate('Y');
         $month = isset($_POST['month']) ? absint($_POST['month']) : (int) gmdate('n');

@@ -18,6 +18,12 @@ class RAC_Calendar {
         add_shortcode('rentman_calendar', [$this, 'render_shortcode']);
     }
 
+    /**
+     * Renders the calendar shortcode
+     * 
+     * @param array $atts Shortcode attributes
+     * @return string HTML output
+     */
     public function render_shortcode($atts) {
         $atts = shortcode_atts([
             'year'  => (int) gmdate('Y'),
@@ -102,6 +108,14 @@ class RAC_Calendar {
         return ob_get_clean();
     }
 
+    /**
+     * Renders the calendar grid HTML
+     * 
+     * @param int $year The year
+     * @param int $month The month (1-12)
+     * @param array|WP_Error $data Availability data
+     * @return string HTML for the calendar grid
+     */
     private function render_calendar_grid($year, $month, $data) {
         $days_in_month = (int) gmdate('t', gmmktime(0, 0, 0, $month, 1, $year));
         $first_weekday = (int) gmdate('w', gmmktime(0, 0, 0, $month, 1, $year));
@@ -178,7 +192,17 @@ class RAC_Calendar {
         return ob_get_clean();
     }
 
+    /**
+     * Gets availability data for a specific month
+     * 
+     * @param int $year The year
+     * @param int $month The month (1-12)
+     * @return array|WP_Error Availability data or WP_Error on failure
+     */
     public function get_month_availability($year, $month) {
+        $year = absint($year);
+        $month = absint($month);
+        
         $logger = RAC_Logger::instance();
         $logger->log('get_month_availability', ['year' => $year, 'month' => $month]);
 
@@ -263,7 +287,17 @@ class RAC_Calendar {
         ];
     }
 
+    /**
+     * Checks if a project is relevant based on type and status
+     * 
+     * @param array $project The project data
+     * @return bool True if project is relevant, false otherwise
+     */
     private function is_relevant_project($project) {
+        if (!is_array($project)) {
+            return false;
+        }
+        
         $type = $this->get_project_type($project);
         $status = $this->get_project_status($project);
 
@@ -281,29 +315,55 @@ class RAC_Calendar {
         return true;
     }
 
+    /**
+     * Gets the project type from various possible fields
+     * 
+     * @param array $project The project data
+     * @return string The project type or empty string
+     */
     private function get_project_type($project) {
+        if (!is_array($project)) {
+            return '';
+        }
         if (isset($project['type'])) {
-            return $project['type'];
+            return (string) $project['type'];
         }
         if (isset($project['project_type'])) {
-            return $project['project_type'];
+            return (string) $project['project_type'];
         }
         if (isset($project['category'])) {
-            return $project['category'];
+            return (string) $project['category'];
         }
         return '';
     }
 
+    /**
+     * Gets the project status from various possible fields
+     * 
+     * @param array $project The project data
+     * @return string The project status or empty string
+     */
     private function get_project_status($project) {
+        if (!is_array($project)) {
+            return '';
+        }
         if (isset($project['status'])) {
-            return $project['status'];
+            return (string) $project['status'];
         }
         if (isset($project['project_status'])) {
-            return $project['project_status'];
+            return (string) $project['project_status'];
         }
         return '';
     }
 
+    /**
+     * Extracts the day from a date string if it belongs to the specified month and year
+     * 
+     * @param string $date_string The date string to parse
+     * @param int $year The year to match
+     * @param int $month The month to match (1-12)
+     * @return int|null The day number or null if date doesn't match
+     */
     private function extract_day_from_date($date_string, $year, $month) {
         if (empty($date_string)) {
             return null;
@@ -325,7 +385,14 @@ class RAC_Calendar {
         return $apt_day;
     }
 
+    /**
+     * Determines the availability level based on appointment count
+     * 
+     * @param int $count Number of appointments
+     * @return string The level ('green', 'orange', or 'red')
+     */
     public function get_level($count) {
+        $count = absint($count);
         if ($count === 0) {
             return 'green';
         }
@@ -335,6 +402,12 @@ class RAC_Calendar {
         return 'red';
     }
 
+    /**
+     * Gets availability for a specific date
+     * 
+     * @param string $date_string The date string to check
+     * @return array Availability data with success status, date, status, count, message, and details
+     */
     public function get_date_availability($date_string) {
         $normalized = $this->normalize_date($date_string);
 
@@ -408,6 +481,12 @@ class RAC_Calendar {
         return $result;
     }
 
+    /**
+     * Normalizes a date string to Y-m-d format
+     * 
+     * @param string $date_string The date string to normalize
+     * @return string|WP_Error Normalized date string (Y-m-d) or WP_Error on failure
+     */
     public function normalize_date($date_string) {
         if (empty($date_string)) {
             return new WP_Error('rac_empty_date', __('No date provided.', 'rentman-availability-calendar'));
@@ -418,6 +497,7 @@ class RAC_Calendar {
         $settings = get_option(RAC_OPTION_KEY, []);
         $configured_format = isset($settings['gf_date_format']) ? $settings['gf_date_format'] : 'd/m/Y';
 
+        // Try configured format first
         if ($configured_format !== 'auto') {
             $dt = DateTime::createFromFormat($configured_format, $date_string);
             if ($dt !== false) {
@@ -426,13 +506,14 @@ class RAC_Calendar {
             }
         }
 
+        // Try common date formats
         $formats = [
-            'd/m/Y',
-            'm/d/Y',
-            'Y-m-d',
-            'd-m-Y',
-            'm-d-Y',
-            'Y/m/d',
+            'd/m/Y',  // European: 22/09/2026
+            'm/d/Y',  // US: 09/22/2026
+            'Y-m-d',  // ISO: 2026-09-22
+            'd-m-Y',  // European with dashes: 22-09-2026
+            'm-d-Y',  // US with dashes: 09-22-2026
+            'Y/m/d',  // ISO with slashes: 2026/09/22
         ];
 
         foreach ($formats as $format) {
@@ -443,11 +524,12 @@ class RAC_Calendar {
             }
         }
 
+        // Fallback to strtotime
         $timestamp = strtotime($date_string);
         if ($timestamp !== false) {
             return gmdate('Y-m-d', $timestamp);
         }
 
-        return new WP_Error('rac_invalid_date', __('Invalid date format.', 'rentman-availability-calendar'));
+        return new WP_Error('rac_invalid_date', sprintf(__('Invalid date format. Expected format: %s', 'rentman-availability-calendar'), $configured_format));
     }
 }

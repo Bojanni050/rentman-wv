@@ -5,14 +5,20 @@ if (!defined('ABSPATH')) {
 
 class RAC_API_Client {
 
-    private $base_url = 'https://api.rentman.net';
+    private const BASE_URL = 'https://api.rentman.net';
+    private const DEFAULT_CACHE_MINUTES = 15;
+    private const MAX_PAGES = 50;
+    private const ITEMS_PER_PAGE = 100;
+    private const REQUEST_DELAY = 1; // Seconds between requests to prevent rate limiting
+
     private $token = '';
-    private $cache_minutes = RAC_DEFAULT_CACHE_MINUTES;
+    private $cache_minutes = self::DEFAULT_CACHE_MINUTES;
+    private $last_request_time = 0;
 
     public function __construct() {
         $settings = get_option(RAC_OPTION_KEY, []);
-        $this->token = isset($settings['api_token']) ? trim($settings['api_token']) : '';
-        $this->cache_minutes = isset($settings['cache_minutes']) ? max(1, (int) $settings['cache_minutes']) : RAC_DEFAULT_CACHE_MINUTES;
+        $this->token = isset($settings['api_token']) ? wp_unslash(trim($settings['api_token'])) : '';
+        $this->cache_minutes = isset($settings['cache_minutes']) ? max(1, (int) $settings['cache_minutes']) : self::DEFAULT_CACHE_MINUTES;
     }
 
     public function is_configured() {
@@ -29,18 +35,34 @@ class RAC_API_Client {
 
     public function clear_cache() {
         global $wpdb;
-        $deleted = $wpdb->query(
-            "DELETE FROM {$wpdb->options} WHERE option_name LIKE '" . RAC_TRANSIENT_PREFIX . "%'"
+        $prefix = RAC_TRANSIENT_PREFIX;
+        $options = $wpdb->get_results(
+            $wpdb->prepare("SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s", $prefix . '%')
         );
-        RAC_Logger::instance()->log_cache('clear_all', 'all', ['deleted' => (int) $deleted]);
+        
+        $deleted = 0;
+        foreach ($options as $option) {
+            if (delete_option($option->option_name)) {
+                $deleted++;
+            }
+        }
+        
+        RAC_Logger::instance()->log_cache('clear_all', 'all', ['deleted' => $deleted]);
     }
 
     public function clear_month_cache($year, $month) {
-        $key = RAC_TRANSIENT_PREFIX . "appointments_{$year}_{$month}";
+        $year = absint($year);
+        $month = absint($month);
+        $key = sanitize_key(RAC_TRANSIENT_PREFIX . "appointments_{$year}_{$month}");
         delete_transient($key);
         RAC_Logger::instance()->log_cache('clear_month', $key);
     }
 
+    /**
+     * Tests the API connection
+     * 
+     * @return true|WP_Error True on success, WP_Error on failure
+     */
     public function test_connection() {
         if (!$this->is_configured()) {
             return new WP_Error('rac_no_token', __('No API token configured.', 'rentman-availability-calendar'));
@@ -57,12 +79,33 @@ class RAC_API_Client {
         return true;
     }
 
+    /**
+     * Gets appointments for a specific month (alias for get_projects_for_month)
+     * 
+     * @param int $year The year
+     * @param int $month The month (1-12)
+     * @return array|WP_Error Array of projects or WP_Error on failure
+     */
     public function get_appointments_for_month($year, $month) {
         return $this->get_projects_for_month($year, $month);
     }
 
+    /**
+     * Fetches projects from Rentman API for a specific month
+     * 
+     * @param int $year The year to fetch projects for
+     * @param int $month The month to fetch projects for (1-12)
+     * @return array|WP_Error Array of projects or WP_Error on failure
+     */
     public function get_projects_for_month($year, $month) {
-        $cache_key = RAC_TRANSIENT_PREFIX . "projects_{$year}_{$month}";
+        $year = absint($year);
+        $month = absint($month);
+        
+        if ($month < 1 || $month > 12) {
+            return new WP_Error('rac_invalid_month', __('Invalid month. Must be between 1 and 12.', 'rentman-availability-calendar'));
+        }
+
+        $cache_key = sanitize_key(RAC_TRANSIENT_PREFIX . "projects_{$year}_{$month}");
         $cached = get_transient($cache_key);
 
         if ($cached !== false && is_array($cached)) {
@@ -84,8 +127,8 @@ class RAC_API_Client {
 
         $all_projects = [];
         $offset = 0;
-        $limit = 100;
-        $max_pages = 50;
+        $limit = self::ITEMS_PER_PAGE;
+        $max_pages = self::MAX_PAGES;
 
         for ($page = 0; $page < $max_pages; $page++) {
             $response = $this->request('/projects', [
@@ -100,7 +143,7 @@ class RAC_API_Client {
 
             $data = isset($response['data']) ? $response['data'] : [];
 
-            if (!is_array($data) || empty($data)) {
+            if (!is_array($data) || count($data) === 0) {
                 break;
             }
 
@@ -125,12 +168,31 @@ class RAC_API_Client {
         return $all_projects;
     }
 
+    /**
+     * Makes a request to the Rentman API with rate limiting
+     * 
+     * @param string $endpoint The API endpoint
+     * @param array $params Query parameters
+     * @return array|WP_Error API response or WP_Error on failure
+     */
     private function request($endpoint, $params = []) {
         if (!$this->is_configured()) {
             return new WP_Error('rac_no_token', __('No API token configured.', 'rentman-availability-calendar'));
         }
 
-        $url = $this->base_url . $endpoint;
+        // Rate limiting
+        $now = time();
+        if ($now - $this->last_request_time < self::REQUEST_DELAY) {
+            $sleep_time = self::REQUEST_DELAY - ($now - $this->last_request_time);
+            if (function_exists('usleep')) {
+                usleep($sleep_time * 1000000); // Convert seconds to microseconds
+            } else {
+                sleep($sleep_time);
+            }
+        }
+        $this->last_request_time = time();
+
+        $url = self::BASE_URL . $endpoint;
 
         if (!empty($params)) {
             $url = add_query_arg($params, $url);
@@ -182,6 +244,12 @@ class RAC_API_Client {
         return $decoded;
     }
 
+    /**
+     * Extracts error message from API response body
+     * 
+     * @param string $body The response body
+     * @return string The error message
+     */
     private function extract_error_message($body) {
         $decoded = json_decode($body, true);
         if (is_array($decoded)) {
