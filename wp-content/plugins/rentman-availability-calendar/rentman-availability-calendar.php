@@ -23,7 +23,9 @@ define('RAC_DEFAULT_CACHE_MINUTES', 15);
 require_once RAC_PLUGIN_DIR . 'includes/class-rac-api-client.php';
 require_once RAC_PLUGIN_DIR . 'includes/class-rac-settings.php';
 require_once RAC_PLUGIN_DIR . 'includes/class-rac-calendar.php';
-require_once RAC_PLUGIN_DIR . 'includes/class-rac-elementor-widget.php';
+if (did_action('elementor/loaded') || class_exists('\Elementor\Widget_Base')) {
+    require_once RAC_PLUGIN_DIR . 'includes/class-rac-elementor-widget.php';
+}
 require_once RAC_PLUGIN_DIR . 'includes/integrations/class-rac-gravity-forms.php';
 
 class Rentman_Availability_Calendar {
@@ -52,9 +54,10 @@ class Rentman_Availability_Calendar {
     }
 
     public function register_elementor_widget($widgets_manager) {
-        if (did_action('elementor/loaded')) {
-            $widgets_manager->register(new RAC_Elementor_Widget());
+        if (!class_exists('RAC_Elementor_Widget')) {
+            return;
         }
+        $widgets_manager->register(new RAC_Elementor_Widget());
     }
 
     public function register_assets() {
