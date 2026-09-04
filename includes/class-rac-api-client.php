@@ -92,6 +92,7 @@ class RAC_API_Client {
 
     /**
      * Fetches projects from Rentman API for a specific month
+     * Uses /projectequipment endpoint with cursor-based pagination
      * 
      * @param int $year The year to fetch projects for
      * @param int $month The month to fetch projects for (1-12)
@@ -118,48 +119,195 @@ class RAC_API_Client {
         $first_day = sprintf('%04d-%02d-01', $year, $month);
         $last_day  = gmdate('Y-m-t', gmmktime(0, 0, 0, $month, 1, $year));
 
-        $all_projects = [];
-        $offset = 0;
-        $limit = self::ITEMS_PER_PAGE;
-        $max_pages = self::MAX_PAGES;
+        // Build initial URL with filters
+        $url = self::BASE_URL . '/projectequipment?' . http_build_query([
+            'limit'                  => self::ITEMS_PER_PAGE,
+            'expand'                => 'equipment_group',
+            'planperiod_start[gte]' => $first_day . 'T00:00:00Z',
+            'planperiod_start[lte]' => $last_day . 'T23:59:59Z',
+        ], '', '&', PHP_QUERY_RFC3986);
 
-        for ($page = 0; $page < $max_pages; $page++) {
-            $response = $this->request('/projects', [
-                'limit'                  => $limit,
-                'offset'                 => $offset,
-                'planperiod_start[gte]' => $first_day . 'T00:00:00Z',
-                'planperiod_start[lte]' => $last_day . 'T23:59:59Z',
-            ]);
+        // Initialize day counters
+        $day_counts = [];
+        $max_pages = self::MAX_PAGES;
+        $pages_fetched = 0;
+
+        do {
+            if ($pages_fetched >= $max_pages) {
+                break;
+            }
+
+            $pages_fetched++;
+
+            // Use direct wp_remote_get for cursor-based pagination
+            $args = [
+                'timeout' => 30,
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $this->token,
+                    'Accept'        => 'application/json',
+                ],
+            ];
+
+            // Rate limiting
+            $now = time();
+            if ($now - $this->last_request_time < self::REQUEST_DELAY) {
+                $sleep_time = self::REQUEST_DELAY - ($now - $this->last_request_time);
+                if (function_exists('usleep')) {
+                    usleep($sleep_time * 1000000);
+                } else {
+                    sleep($sleep_time);
+                }
+            }
+            $this->last_request_time = time();
+
+            $response = wp_remote_get($url, $args);
 
             if (is_wp_error($response)) {
-                return $response;
+                RAC_Logger::instance()->log_request('/projectequipment', [], null, $response->get_error_message());
+                return new WP_Error(
+                    'rac_request_failed',
+                    sprintf(__('Request failed: %s', 'rentman-availability-calendar'), $response->get_error_message())
+                );
             }
 
-            $data = isset($response['data']) ? $response['data'] : [];
+            $code = wp_remote_retrieve_response_code($response);
+            $body = wp_remote_retrieve_body($response);
 
-            if (!is_array($data) || count($data) === 0) {
+            if ($code === 401 || $code === 403) {
+                RAC_Logger::instance()->log_request('/projectequipment', [], $code, 'Auth failed');
+                return new WP_Error('rac_auth_failed', __('Authentication failed. Check your API token.', 'rentman-availability-calendar'));
+            }
+
+            if ($code >= 400) {
+                $error_msg = $this->extract_error_message($body);
+                RAC_Logger::instance()->log_request('/projectequipment', [], $code, $error_msg);
+                return new WP_Error(
+                    'rac_api_error',
+                    sprintf(__('API error (HTTP %d): %s', 'rentman-availability-calendar'), $code, $error_msg)
+                );
+            }
+
+            $decoded = json_decode($body, true);
+
+            if (!is_array($decoded)) {
+                RAC_Logger::instance()->log_request('/projectequipment', [], $code, 'JSON parse failed');
+                return new WP_Error('rac_parse_error', __('Failed to parse API response.', 'rentman-availability-calendar'));
+            }
+
+            // Process equipment items
+            $data = isset($decoded['data']) ? $decoded['data'] : [];
+
+            foreach ($data as $item) {
+                if (!isset($item['equipment_group']) || !isset($item['equipment_group']['project'])) {
+                    continue;
+                }
+
+                $project_url = $item['equipment_group']['project'];
+                $project_id = $this->extract_id_from_url($project_url);
+
+                if (!$project_id) {
+                    continue;
+                }
+
+                // Get planperiod from equipment_group
+                $start_date = isset($item['equipment_group']['planperiod_start']) ? $item['equipment_group']['planperiod_start'] : null;
+                $end_date = isset($item['equipment_group']['planperiod_end']) ? $item['equipment_group']['planperiod_end'] : null;
+
+                if (!$start_date || !$end_date) {
+                    continue;
+                }
+
+                // Convert to timestamps for easier comparison
+                $start_ts = strtotime($start_date);
+                $end_ts = strtotime($end_date);
+
+                if ($start_ts === false || $end_ts === false) {
+                    continue;
+                }
+
+                // Determine which days in the month this period overlaps with
+                $month_start_ts = gmmktime(0, 0, 0, $month, 1, $year);
+                $month_end_ts = gmmktime(23, 59, 59, $month, gmdate('t', $month_start_ts), $year);
+
+                // Clamp the period to the month boundaries
+                $period_start_ts = max($start_ts, $month_start_ts);
+                $period_end_ts = min($end_ts, $month_end_ts);
+
+                // Iterate through each day in the overlapping period
+                $current_day_ts = $period_start_ts;
+                while ($current_day_ts <= $period_end_ts) {
+                    $day_key = gmdate('Y-m-d', $current_day_ts);
+                    
+                    if (!isset($day_counts[$day_key])) {
+                        $day_counts[$day_key] = [];
+                    }
+                    
+                    // Use project_id as key to ensure uniqueness
+                    $day_counts[$day_key][$project_id] = true;
+                    
+                    // Move to next day
+                    $current_day_ts = gmmktime(0, 0, 0, 
+                        gmdate('m', $current_day_ts), 
+                        gmdate('d', $current_day_ts) + 1, 
+                        gmdate('Y', $current_day_ts)
+                    );
+                }
+            }
+
+            // Check for next page
+            $next_page_url = isset($decoded['next_page_url']) ? $decoded['next_page_url'] : null;
+            
+            if (empty($next_page_url) || !is_string($next_page_url)) {
                 break;
             }
 
-            $all_projects = array_merge($all_projects, $data);
+            // Follow the next_page_url (which includes the cursor token)
+            $url = $next_page_url;
 
-            if (count($data) < $limit) {
-                break;
-            }
+        } while (true);
 
-            $offset += $limit;
+        // Convert day counts to simple arrays (we only need the count)
+        $result = [];
+        foreach ($day_counts as $day => $projects) {
+            $result[$day] = count($projects);
         }
 
-        RAC_Logger::instance()->log('Projects fetched', [
+        RAC_Logger::instance()->log('Projects fetched via equipment', [
             'year'   => $year,
             'month'  => $month,
-            'total'  => count($all_projects),
-            'pages'  => $page + 1,
+            'days'    => count($result),
+            'pages'   => $pages_fetched,
         ]);
 
-        set_transient($cache_key, $all_projects, $this->cache_minutes * MINUTE_IN_SECONDS);
+        set_transient($cache_key, $result, $this->cache_minutes * MINUTE_IN_SECONDS);
 
-        return $all_projects;
+        return $result;
+    }
+
+    /**
+     * Extracts ID from a Rentman API URL (e.g., /projects/2542 -> 2542)
+     * 
+     * @param string $url The API URL
+     * @return int|null The extracted ID or null if not found
+     */
+    private function extract_id_from_url($url) {
+        if (!is_string($url) || empty($url)) {
+            return null;
+        }
+
+        // Remove leading slash if present
+        $url = ltrim($url, '/');
+
+        // Split by / and get the last numeric part
+        $parts = explode('/', $url);
+        
+        foreach ($parts as $part) {
+            if (is_numeric($part)) {
+                return (int) $part;
+            }
+        }
+
+        return null;
     }
 
     /**

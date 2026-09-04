@@ -213,55 +213,16 @@ class RAC_Calendar {
             return new WP_Error('rac_not_configured', __('API token not configured.', 'rentman-availability-calendar'));
         }
 
-        $projects = $client->get_projects_for_month($year, $month);
+        // get_projects_for_month now returns an array of day => count
+        // where day is in YYYY-MM-DD format and count is the number of unique projects
+        $day_counts = $client->get_projects_for_month($year, $month);
 
-        if (is_wp_error($projects)) {
-            $logger->log('Failed to fetch projects', ['error' => $projects->get_error_message()]);
-            return $projects;
+        if (is_wp_error($day_counts)) {
+            $logger->log('Failed to fetch projects', ['error' => $day_counts->get_error_message()]);
+            return $day_counts;
         }
 
-        $logger->log('Projects received', ['count' => count($projects)]);
-
-        $day_counts = [];
-        $day_details = [];
-
-        foreach ($projects as $project) {
-            if (!$this->is_relevant_project($project)) {
-                $logger->log('Project skipped (not relevant)', [
-                    'name'   => isset($project['name']) ? $project['name'] : '',
-                    'type'   => $this->get_project_type($project),
-                    'status' => $this->get_project_status($project),
-                ]);
-                continue;
-            }
-
-            $start = isset($project['planperiod_start']) ? $project['planperiod_start'] : (isset($project['start']) ? $project['start'] : '');
-            $day = $this->extract_day_from_date($start, $year, $month);
-
-            if ($day === null) {
-                continue;
-            }
-
-            if (!isset($day_counts[$day])) {
-                $day_counts[$day] = 0;
-            }
-            $day_counts[$day]++;
-
-            $name = isset($project['name']) ? $project['name'] : (isset($project['displayname']) ? $project['displayname'] : '');
-            $end = isset($project['planperiod_end']) ? $project['planperiod_end'] : (isset($project['end']) ? $project['end'] : '');
-            $location = isset($project['location']) ? $project['location'] : '';
-            $type = $this->get_project_type($project);
-
-            $day_details[$day][] = [
-                'name'     => sanitize_text_field($name),
-                'start'    => sanitize_text_field($start),
-                'end'      => sanitize_text_field($end),
-                'location' => sanitize_text_field($location),
-                'type'     => sanitize_text_field($type),
-            ];
-        }
-
-        $logger->log('Relevant projects counted', [
+        $logger->log('Day counts received from API', [
             'days_with_appointments' => count($day_counts),
             'total_appointments'     => array_sum($day_counts),
         ]);
@@ -270,12 +231,13 @@ class RAC_Calendar {
         $days_in_month = (int) gmdate('t', gmmktime(0, 0, 0, $month, 1, $year));
 
         for ($d = 1; $d <= $days_in_month; $d++) {
-            $count = isset($day_counts[$d]) ? $day_counts[$d] : 0;
+            $day_key = sprintf('%04d-%02d-%02d', $year, $month, $d);
+            $count = isset($day_counts[$day_key]) ? $day_counts[$day_key] : 0;
             $days[] = [
                 'day'     => $d,
                 'count'   => $count,
                 'level'   => $this->get_level($count),
-                'details' => isset($day_details[$d]) ? $day_details[$d] : [],
+                'details' => [], // Details are not available with the new approach
             ];
         }
 
