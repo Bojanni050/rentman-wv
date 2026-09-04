@@ -224,7 +224,7 @@ rentman-availability-calendar/
 │   └── gravity-forms.js               # Gravity Forms integration JS
 └── css/
     ├── calendar.css                   # Calendar styles
-    └── gravity-forms.css              # Gravity Forms integration styles
+    └── rentman-availability-calendar-gravity-forms.css              # Gravity Forms integration styles
 ```
 
 ## Contributing

@@ -51,7 +51,7 @@ class RAC_Gravity_Forms {
     public function register_assets() {
         wp_register_style(
             'rac-gf-style',
-            RAC_PLUGIN_URL . 'css/gravity-forms.css',
+            RAC_PLUGIN_URL . 'css/rentman-availability-calendar-gravity-forms.css',
             [],
             RAC_VERSION
         );
