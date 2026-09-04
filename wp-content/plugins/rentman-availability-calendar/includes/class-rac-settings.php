@@ -157,7 +157,7 @@ class RAC_Settings {
         $sanitized['gf_enabled'] = isset($input['gf_enabled']) ? (bool) $input['gf_enabled'] : false;
         $sanitized['gf_form_id'] = isset($input['gf_form_id']) ? absint($input['gf_form_id']) : 0;
         $sanitized['gf_date_field_id'] = isset($input['gf_date_field_id']) ? absint($input['gf_date_field_id']) : 0;
-        $sanitized['gf_block_unavailable'] = isset($input['gf_block_unavailable']) ? (bool) $input['gf_block_unavailable'] : true;
+        $sanitized['gf_block_unavailable'] = isset($input['gf_block_unavailable']) ? (bool) $input['gf_block_unavailable'] : false;
         $sanitized['gf_msg_available'] = isset($input['gf_msg_available']) ? sanitize_text_field($input['gf_msg_available']) : __('Deze datum is beschikbaar.', 'rentman-availability-calendar');
         $sanitized['gf_msg_limited'] = isset($input['gf_msg_limited']) ? sanitize_text_field($input['gf_msg_limited']) : __('Voor deze datum is nog beperkte beschikbaarheid.', 'rentman-availability-calendar');
         $sanitized['gf_msg_unavailable'] = isset($input['gf_msg_unavailable']) ? sanitize_text_field($input['gf_msg_unavailable']) : __('Helaas is deze datum niet beschikbaar.', 'rentman-availability-calendar');

@@ -38,7 +38,7 @@ class RAC_Gravity_Forms {
             'enabled'           => isset($settings['gf_enabled']) ? (bool) $settings['gf_enabled'] : false,
             'form_id'           => isset($settings['gf_form_id']) ? absint($settings['gf_form_id']) : 0,
             'date_field_id'     => isset($settings['gf_date_field_id']) ? absint($settings['gf_date_field_id']) : 0,
-            'block_unavailable' => isset($settings['gf_block_unavailable']) ? (bool) $settings['gf_block_unavailable'] : true,
+            'block_unavailable' => isset($settings['gf_block_unavailable']) ? (bool) $settings['gf_block_unavailable'] : false,
             'msg_available'     => isset($settings['gf_msg_available']) ? $settings['gf_msg_available'] : __('Deze datum is beschikbaar.', 'rentman-availability-calendar'),
             'msg_limited'       => isset($settings['gf_msg_limited']) ? $settings['gf_msg_limited'] : __('Voor deze datum is nog beperkte beschikbaarheid.', 'rentman-availability-calendar'),
             'msg_unavailable'   => isset($settings['gf_msg_unavailable']) ? $settings['gf_msg_unavailable'] : __('Helaas is deze datum niet beschikbaar.', 'rentman-availability-calendar'),
