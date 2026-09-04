@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Rentman Availability Calendar
  * Description: Displays a color-coded availability calendar based on appointment counts from the Rentman API. 0 appointments = green, 1-2 = orange, 3+ = red.
- * Version: 1.1.0
+ * Version: 1.11
  * Author: Bojan Davidovič / White Vision
  * License: GPL-2.0-or-later
  * Text Domain: rentman-availability-calendar
@@ -12,7 +12,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('RAC_VERSION', '1.1.0');
+define('RAC_VERSION', '1.11');
 define('RAC_PLUGIN_FILE', __FILE__);
 define('RAC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('RAC_PLUGIN_URL', plugin_dir_url(__FILE__));

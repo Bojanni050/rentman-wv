@@ -118,13 +118,6 @@ class RAC_API_Client {
         $first_day = sprintf('%04d-%02d-01', $year, $month);
         $last_day  = gmdate('Y-m-t', gmmktime(0, 0, 0, $month, 1, $year));
 
-        $query_filter = [
-            'planperiod_start' => [
-                'gte' => $first_day . ' 00:00:00',
-                'lte' => $last_day . ' 23:59:59',
-            ],
-        ];
-
         $all_projects = [];
         $offset = 0;
         $limit = self::ITEMS_PER_PAGE;
@@ -132,9 +125,10 @@ class RAC_API_Client {
 
         for ($page = 0; $page < $max_pages; $page++) {
             $response = $this->request('/projects', [
-                'limit'  => $limit,
-                'offset' => $offset,
-                'query'  => wp_json_encode($query_filter),
+                'limit'                  => $limit,
+                'offset'                 => $offset,
+                'planperiod_start[gte]' => $first_day . ' 00:00:00',
+                'planperiod_start[lte]' => $last_day . ' 23:59:59',
             ]);
 
             if (is_wp_error($response)) {
