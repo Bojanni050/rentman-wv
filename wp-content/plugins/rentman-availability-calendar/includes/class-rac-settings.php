@@ -78,6 +78,69 @@ class RAC_Settings {
             'rentman-availability-calendar',
             'rac_main_section'
         );
+
+        add_settings_section(
+            'rac_gf_section',
+            __('Gravity Forms Integration', 'rentman-availability-calendar'),
+            [$this, 'render_gf_section_info'],
+            'rentman-availability-calendar'
+        );
+
+        add_settings_field(
+            'gf_enabled',
+            __('Enable Integration', 'rentman-availability-calendar'),
+            [$this, 'render_gf_enabled_field'],
+            'rentman-availability-calendar',
+            'rac_gf_section'
+        );
+
+        add_settings_field(
+            'gf_form_id',
+            __('Gravity Forms Form ID', 'rentman-availability-calendar'),
+            [$this, 'render_gf_form_id_field'],
+            'rentman-availability-calendar',
+            'rac_gf_section'
+        );
+
+        add_settings_field(
+            'gf_date_field_id',
+            __('Date Field ID', 'rentman-availability-calendar'),
+            [$this, 'render_gf_date_field_id_field'],
+            'rentman-availability-calendar',
+            'rac_gf_section'
+        );
+
+        add_settings_field(
+            'gf_block_unavailable',
+            __('Block Unavailable Dates', 'rentman-availability-calendar'),
+            [$this, 'render_gf_block_unavailable_field'],
+            'rentman-availability-calendar',
+            'rac_gf_section'
+        );
+
+        add_settings_field(
+            'gf_msg_available',
+            __('Available Message', 'rentman-availability-calendar'),
+            [$this, 'render_gf_msg_available_field'],
+            'rentman-availability-calendar',
+            'rac_gf_section'
+        );
+
+        add_settings_field(
+            'gf_msg_limited',
+            __('Limited Availability Message', 'rentman-availability-calendar'),
+            [$this, 'render_gf_msg_limited_field'],
+            'rentman-availability-calendar',
+            'rac_gf_section'
+        );
+
+        add_settings_field(
+            'gf_msg_unavailable',
+            __('Unavailable Message', 'rentman-availability-calendar'),
+            [$this, 'render_gf_msg_unavailable_field'],
+            'rentman-availability-calendar',
+            'rac_gf_section'
+        );
     }
 
     public function sanitize_settings($input) {
@@ -90,6 +153,14 @@ class RAC_Settings {
         $sanitized['cache_minutes'] = isset($input['cache_minutes'])
             ? max(1, absint($input['cache_minutes']))
             : RAC_DEFAULT_CACHE_MINUTES;
+
+        $sanitized['gf_enabled'] = isset($input['gf_enabled']) ? (bool) $input['gf_enabled'] : false;
+        $sanitized['gf_form_id'] = isset($input['gf_form_id']) ? absint($input['gf_form_id']) : 0;
+        $sanitized['gf_date_field_id'] = isset($input['gf_date_field_id']) ? absint($input['gf_date_field_id']) : 0;
+        $sanitized['gf_block_unavailable'] = isset($input['gf_block_unavailable']) ? (bool) $input['gf_block_unavailable'] : true;
+        $sanitized['gf_msg_available'] = isset($input['gf_msg_available']) ? sanitize_text_field($input['gf_msg_available']) : __('Deze datum is beschikbaar.', 'rentman-availability-calendar');
+        $sanitized['gf_msg_limited'] = isset($input['gf_msg_limited']) ? sanitize_text_field($input['gf_msg_limited']) : __('Voor deze datum is nog beperkte beschikbaarheid.', 'rentman-availability-calendar');
+        $sanitized['gf_msg_unavailable'] = isset($input['gf_msg_unavailable']) ? sanitize_text_field($input['gf_msg_unavailable']) : __('Helaas is deze datum niet beschikbaar.', 'rentman-availability-calendar');
 
         $this->get_api_client()->clear_cache();
 
@@ -117,6 +188,58 @@ class RAC_Settings {
     public function render_shortcode_field() {
         echo '<code>[rentman_calendar]</code>';
         echo '<p class="description">' . esc_html__('Add this shortcode to any page or post to display the availability calendar.', 'rentman-availability-calendar') . '</p>';
+    }
+
+    public function render_gf_section_info() {
+        $gf_active = class_exists('GFForms');
+        echo '<p>' . esc_html__('Configure the Gravity Forms integration for realtime availability checks when a visitor selects an event date.', 'rentman-availability-calendar') . '</p>';
+        if (!$gf_active) {
+            echo '<div class="notice notice-warning inline"><p>' . esc_html__('Gravity Forms is not active. Install and activate the Gravity Forms plugin to use this integration.', 'rentman-availability-calendar') . '</p></div>';
+        }
+    }
+
+    public function render_gf_enabled_field() {
+        $settings = get_option(RAC_OPTION_KEY, []);
+        $enabled = isset($settings['gf_enabled']) ? (bool) $settings['gf_enabled'] : false;
+        echo '<label><input type="checkbox" name="' . esc_attr(RAC_OPTION_KEY) . '[gf_enabled]" value="1" ' . checked($enabled, true, false) . ' /> ' . esc_html__('Enable realtime availability check in Gravity Forms', 'rentman-availability-calendar') . '</label>';
+    }
+
+    public function render_gf_form_id_field() {
+        $settings = get_option(RAC_OPTION_KEY, []);
+        $form_id = isset($settings['gf_form_id']) ? $settings['gf_form_id'] : 0;
+        echo '<input type="number" name="' . esc_attr(RAC_OPTION_KEY) . '[gf_form_id]" value="' . esc_attr($form_id) . '" class="small-text" min="0" />';
+        echo '<p class="description">' . esc_html__('The ID of the Gravity Forms form that contains the date field. Use 0 to apply to all forms.', 'rentman-availability-calendar') . '</p>';
+    }
+
+    public function render_gf_date_field_id_field() {
+        $settings = get_option(RAC_OPTION_KEY, []);
+        $field_id = isset($settings['gf_date_field_id']) ? $settings['gf_date_field_id'] : 0;
+        echo '<input type="number" name="' . esc_attr(RAC_OPTION_KEY) . '[gf_date_field_id]" value="' . esc_attr($field_id) . '" class="small-text" min="0" />';
+        echo '<p class="description">' . esc_html__('The field ID of the date field in the Gravity Form. Use 0 to auto-detect date fields.', 'rentman-availability-calendar') . '</p>';
+    }
+
+    public function render_gf_block_unavailable_field() {
+        $settings = get_option(RAC_OPTION_KEY, []);
+        $block = isset($settings['gf_block_unavailable']) ? (bool) $settings['gf_block_unavailable'] : true;
+        echo '<label><input type="checkbox" name="' . esc_attr(RAC_OPTION_KEY) . '[gf_block_unavailable]" value="1" ' . checked($block, true, false) . ' /> ' . esc_html__('Block form submission when the selected date is unavailable', 'rentman-availability-calendar') . '</label>';
+    }
+
+    public function render_gf_msg_available_field() {
+        $settings = get_option(RAC_OPTION_KEY, []);
+        $msg = isset($settings['gf_msg_available']) ? $settings['gf_msg_available'] : __('Deze datum is beschikbaar.', 'rentman-availability-calendar');
+        echo '<input type="text" name="' . esc_attr(RAC_OPTION_KEY) . '[gf_msg_available]" value="' . esc_attr($msg) . '" class="regular-text" />';
+    }
+
+    public function render_gf_msg_limited_field() {
+        $settings = get_option(RAC_OPTION_KEY, []);
+        $msg = isset($settings['gf_msg_limited']) ? $settings['gf_msg_limited'] : __('Voor deze datum is nog beperkte beschikbaarheid.', 'rentman-availability-calendar');
+        echo '<input type="text" name="' . esc_attr(RAC_OPTION_KEY) . '[gf_msg_limited]" value="' . esc_attr($msg) . '" class="regular-text" />';
+    }
+
+    public function render_gf_msg_unavailable_field() {
+        $settings = get_option(RAC_OPTION_KEY, []);
+        $msg = isset($settings['gf_msg_unavailable']) ? $settings['gf_msg_unavailable'] : __('Helaas is deze datum niet beschikbaar.', 'rentman-availability-calendar');
+        echo '<input type="text" name="' . esc_attr(RAC_OPTION_KEY) . '[gf_msg_unavailable]" value="' . esc_attr($msg) . '" class="regular-text" />';
     }
 
     public function handle_test_connection() {

@@ -24,6 +24,7 @@ require_once RAC_PLUGIN_DIR . 'includes/class-rac-api-client.php';
 require_once RAC_PLUGIN_DIR . 'includes/class-rac-settings.php';
 require_once RAC_PLUGIN_DIR . 'includes/class-rac-calendar.php';
 require_once RAC_PLUGIN_DIR . 'includes/class-rac-elementor-widget.php';
+require_once RAC_PLUGIN_DIR . 'includes/integrations/class-rac-gravity-forms.php';
 
 class Rentman_Availability_Calendar {
 
@@ -47,6 +48,7 @@ class Rentman_Availability_Calendar {
     public function init() {
         RAC_Settings::instance();
         RAC_Calendar::instance();
+        RAC_Gravity_Forms::instance();
     }
 
     public function register_elementor_widget($widgets_manager) {

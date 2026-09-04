@@ -317,4 +317,104 @@ class RAC_Calendar {
         }
         return 'red';
     }
+
+    public function get_date_availability($date_string) {
+        $normalized = $this->normalize_date($date_string);
+
+        if (is_wp_error($normalized)) {
+            return [
+                'success' => false,
+                'message' => $normalized->get_error_message(),
+            ];
+        }
+
+        $parts = explode('-', $normalized);
+        $year  = (int) $parts[0];
+        $month = (int) $parts[1];
+        $day   = (int) $parts[2];
+
+        $cache_key = RAC_TRANSIENT_PREFIX . "date_{$normalized}";
+        $cached = get_transient($cache_key);
+
+        if ($cached !== false && is_array($cached)) {
+            return $cached;
+        }
+
+        $month_data = $this->get_month_availability($year, $month);
+
+        if (is_wp_error($month_data)) {
+            return [
+                'success' => false,
+                'message' => $month_data->get_error_message(),
+            ];
+        }
+
+        $count = 0;
+        $level = 'green';
+        $details = [];
+
+        if (isset($month_data['days'])) {
+            foreach ($month_data['days'] as $d) {
+                if ((int) $d['day'] === $day) {
+                    $count = (int) $d['count'];
+                    $level = $d['level'];
+                    $details = isset($d['details']) ? $d['details'] : [];
+                    break;
+                }
+            }
+        }
+
+        $status = 'available';
+        if ($level === 'orange') {
+            $status = 'limited';
+        } elseif ($level === 'red') {
+            $status = 'unavailable';
+        }
+
+        $result = [
+            'success' => true,
+            'date'    => $normalized,
+            'status'  => $status,
+            'count'   => $count,
+            'message' => '',
+            'details' => $details,
+        ];
+
+        $cache_ttl = max(60, RAC_DEFAULT_CACHE_MINUTES * MINUTE_IN_SECONDS);
+        set_transient($cache_key, $result, $cache_ttl);
+
+        return $result;
+    }
+
+    public function normalize_date($date_string) {
+        if (empty($date_string)) {
+            return new WP_Error('rac_empty_date', __('No date provided.', 'rentman-availability-calendar'));
+        }
+
+        $date_string = trim($date_string);
+
+        $formats = [
+            'Y-m-d',
+            'd/m/Y',
+            'm/d/Y',
+            'd-m-Y',
+            'm-d-Y',
+            'Y/m/d',
+        ];
+
+        foreach ($formats as $format) {
+            $dt = DateTime::createFromFormat($format, $date_string);
+            if ($dt !== false) {
+                $dt->setTime(0, 0, 0);
+                return $dt->format('Y-m-d');
+            }
+        }
+
+        $timestamp = strtotime($date_string);
+        if ($timestamp !== false) {
+            return gmdate('Y-m-d', $timestamp);
+        }
+
+        return new WP_Error('rac_invalid_date', __('Invalid date format.', 'rentman-availability-calendar'));
+    }
 }
