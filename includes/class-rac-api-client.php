@@ -127,8 +127,8 @@ class RAC_API_Client {
             $response = $this->request('/projects', [
                 'limit'                  => $limit,
                 'offset'                 => $offset,
-                'planperiod_start[gte]' => $first_day . ' 00:00:00',
-                'planperiod_start[lte]' => $last_day . ' 23:59:59',
+                'planperiod_start[gte]' => $first_day . 'T00:00:00Z',
+                'planperiod_start[lte]' => $last_day . 'T23:59:59Z',
             ]);
 
             if (is_wp_error($response)) {
