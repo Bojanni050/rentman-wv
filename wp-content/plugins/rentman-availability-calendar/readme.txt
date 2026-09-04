@@ -1,5 +1,5 @@
 === Rentman Availability Calendar ===
-Contributors: yourname
+Contributors: bojandavidovic, whitevision
 Tags: rentman, calendar, availability, appointments, scheduling
 Requires at least: 5.5
 Tested up to: 6.6
