@@ -29,14 +29,16 @@ class RAC_API_Client {
 
     public function clear_cache() {
         global $wpdb;
-        $wpdb->query(
+        $deleted = $wpdb->query(
             "DELETE FROM {$wpdb->options} WHERE option_name LIKE '" . RAC_TRANSIENT_PREFIX . "%'"
         );
+        RAC_Logger::instance()->log_cache('clear_all', 'all', ['deleted' => (int) $deleted]);
     }
 
     public function clear_month_cache($year, $month) {
         $key = RAC_TRANSIENT_PREFIX . "appointments_{$year}_{$month}";
         delete_transient($key);
+        RAC_Logger::instance()->log_cache('clear_month', $key);
     }
 
     public function test_connection() {
@@ -64,8 +66,11 @@ class RAC_API_Client {
         $cached = get_transient($cache_key);
 
         if ($cached !== false && is_array($cached)) {
+            RAC_Logger::instance()->log_cache('hit', $cache_key, ['count' => count($cached)]);
             return $cached;
         }
+
+        RAC_Logger::instance()->log_cache('miss', $cache_key);
 
         $first_day = sprintf('%04d-%02d-01', $year, $month);
         $last_day  = gmdate('Y-m-t', gmmktime(0, 0, 0, $month, 1, $year));
@@ -108,6 +113,13 @@ class RAC_API_Client {
             $offset += $limit;
         }
 
+        RAC_Logger::instance()->log('Projects fetched', [
+            'year'   => $year,
+            'month'  => $month,
+            'total'  => count($all_projects),
+            'pages'  => $page + 1,
+        ]);
+
         set_transient($cache_key, $all_projects, $this->cache_minutes * MINUTE_IN_SECONDS);
 
         return $all_projects;
@@ -135,6 +147,7 @@ class RAC_API_Client {
         $response = wp_remote_get($url, $args);
 
         if (is_wp_error($response)) {
+            RAC_Logger::instance()->log_request($endpoint, $params, null, $response->get_error_message());
             return new WP_Error(
                 'rac_request_failed',
                 sprintf(__('Request failed: %s', 'rentman-availability-calendar'), $response->get_error_message())
@@ -145,11 +158,13 @@ class RAC_API_Client {
         $body = wp_remote_retrieve_body($response);
 
         if ($code === 401 || $code === 403) {
+            RAC_Logger::instance()->log_request($endpoint, $params, $code, 'Auth failed');
             return new WP_Error('rac_auth_failed', __('Authentication failed. Check your API token.', 'rentman-availability-calendar'));
         }
 
         if ($code >= 400) {
             $error_msg = $this->extract_error_message($body);
+            RAC_Logger::instance()->log_request($endpoint, $params, $code, $error_msg);
             return new WP_Error(
                 'rac_api_error',
                 sprintf(__('API error (HTTP %d): %s', 'rentman-availability-calendar'), $code, $error_msg)
@@ -159,9 +174,11 @@ class RAC_API_Client {
         $decoded = json_decode($body, true);
 
         if (!is_array($decoded)) {
+            RAC_Logger::instance()->log_request($endpoint, $params, $code, 'JSON parse failed');
             return new WP_Error('rac_parse_error', __('Failed to parse API response.', 'rentman-availability-calendar'));
         }
 
+        RAC_Logger::instance()->log_request($endpoint, $params, $code);
         return $decoded;
     }
 

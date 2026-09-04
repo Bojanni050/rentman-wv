@@ -95,9 +95,13 @@ class RAC_Gravity_Forms {
     }
 
     public function ajax_check_date_availability() {
+        $logger = RAC_Logger::instance();
+
         check_ajax_referer('rac_gf_nonce', 'nonce');
 
         $date_string = isset($_POST['date']) ? sanitize_text_field(wp_unslash($_POST['date'])) : '';
+
+        $logger->log('GF ajax_check_date_availability', ['date' => $date_string]);
 
         if (empty($date_string)) {
             wp_send_json_error([
@@ -133,10 +137,19 @@ class RAC_Gravity_Forms {
         $result['message'] = $message;
         $result['block_submission'] = ($result['status'] === 'unavailable' && $config['block_unavailable']);
 
+        $logger->log('GF availability result', [
+            'date'             => $date_string,
+            'status'           => isset($result['status']) ? $result['status'] : '',
+            'count'            => isset($result['count']) ? $result['count'] : 0,
+            'block_submission' => $result['block_submission'],
+        ]);
+
         wp_send_json_success($result);
     }
 
     public function maybe_block_submission($validation_errors, $form) {
+        $logger = RAC_Logger::instance();
+
         if (!$this->is_enabled()) {
             return $validation_errors;
         }
@@ -144,10 +157,16 @@ class RAC_Gravity_Forms {
         $config = $this->get_config();
 
         if (!$config['block_unavailable'] || !$config['form_id'] || !$config['date_field_id']) {
+            $logger->log('GF block_submission skipped', [
+                'block_unavailable' => $config['block_unavailable'],
+                'form_id'           => $config['form_id'],
+                'date_field_id'     => $config['date_field_id'],
+            ]);
             return $validation_errors;
         }
 
         if ((int) $form['id'] !== $config['form_id']) {
+            $logger->log('GF block_submission form mismatch', ['form_id' => $form['id'], 'expected' => $config['form_id']]);
             return $validation_errors;
         }
 
@@ -167,7 +186,10 @@ class RAC_Gravity_Forms {
         $result = $calendar->get_date_availability($date_value);
 
         if (!empty($result['success']) && $result['status'] === 'unavailable') {
+            $logger->log('GF blocking submission', ['date' => $date_value, 'status' => $result['status']]);
             $validation_errors[] = $config['msg_unavailable'];
+        } else {
+            $logger->log('GF allowing submission', ['date' => $date_value, 'status' => isset($result['status']) ? $result['status'] : '']);
         }
 
         return $validation_errors;

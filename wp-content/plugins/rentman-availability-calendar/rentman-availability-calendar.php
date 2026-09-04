@@ -20,6 +20,7 @@ define('RAC_OPTION_KEY', 'rac_settings');
 define('RAC_TRANSIENT_PREFIX', 'rac_cache_');
 define('RAC_DEFAULT_CACHE_MINUTES', 15);
 
+require_once RAC_PLUGIN_DIR . 'includes/class-rac-logger.php';
 require_once RAC_PLUGIN_DIR . 'includes/class-rac-api-client.php';
 require_once RAC_PLUGIN_DIR . 'includes/class-rac-settings.php';
 require_once RAC_PLUGIN_DIR . 'includes/class-rac-calendar.php';

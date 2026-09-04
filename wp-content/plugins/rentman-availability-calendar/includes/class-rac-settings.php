@@ -20,6 +20,7 @@ class RAC_Settings {
         add_action('admin_init', [$this, 'register_settings']);
         add_action('admin_init', [$this, 'handle_test_connection']);
         add_action('admin_init', [$this, 'handle_clear_cache']);
+        add_action('admin_init', [$this, 'handle_clear_log']);
     }
 
     private function get_api_client() {
@@ -141,6 +142,21 @@ class RAC_Settings {
             'rentman-availability-calendar',
             'rac_gf_section'
         );
+
+        add_settings_section(
+            'rac_debug_section',
+            __('Debug Logging', 'rentman-availability-calendar'),
+            [$this, 'render_debug_section_info'],
+            'rentman-availability-calendar'
+        );
+
+        add_settings_field(
+            'debug_logging',
+            __('Enable Debug Logging', 'rentman-availability-calendar'),
+            [$this, 'render_debug_logging_field'],
+            'rentman-availability-calendar',
+            'rac_debug_section'
+        );
     }
 
     public function sanitize_settings($input) {
@@ -161,6 +177,8 @@ class RAC_Settings {
         $sanitized['gf_msg_available'] = isset($input['gf_msg_available']) ? sanitize_text_field($input['gf_msg_available']) : __('Deze datum is beschikbaar.', 'rentman-availability-calendar');
         $sanitized['gf_msg_limited'] = isset($input['gf_msg_limited']) ? sanitize_text_field($input['gf_msg_limited']) : __('Voor deze datum is nog beperkte beschikbaarheid.', 'rentman-availability-calendar');
         $sanitized['gf_msg_unavailable'] = isset($input['gf_msg_unavailable']) ? sanitize_text_field($input['gf_msg_unavailable']) : __('Helaas is deze datum niet beschikbaar.', 'rentman-availability-calendar');
+
+        $sanitized['debug_logging'] = isset($input['debug_logging']) ? (bool) $input['debug_logging'] : false;
 
         $this->get_api_client()->clear_cache();
 
@@ -242,6 +260,16 @@ class RAC_Settings {
         echo '<input type="text" name="' . esc_attr(RAC_OPTION_KEY) . '[gf_msg_unavailable]" value="' . esc_attr($msg) . '" class="regular-text" />';
     }
 
+    public function render_debug_section_info() {
+        echo '<p>' . esc_html__('Enable logging to diagnose API requests, cache behaviour, and availability checks. Logs are written to wp-content/uploads/rac-logs/debug.log.', 'rentman-availability-calendar') . '</p>';
+    }
+
+    public function render_debug_logging_field() {
+        $settings = get_option(RAC_OPTION_KEY, []);
+        $enabled = isset($settings['debug_logging']) ? (bool) $settings['debug_logging'] : false;
+        echo '<label><input type="checkbox" name="' . esc_attr(RAC_OPTION_KEY) . '[debug_logging]" value="1" ' . checked($enabled, true, false) . ' /> ' . esc_html__('Log API requests, cache hits/misses, and availability checks', 'rentman-availability-calendar') . '</label>';
+    }
+
     public function handle_test_connection() {
         if (!isset($_GET['rac_action']) || $_GET['rac_action'] !== 'test_connection') {
             return;
@@ -274,6 +302,19 @@ class RAC_Settings {
         add_settings_error('rac_messages', 'rac_cache_cleared', __('Cache cleared successfully.', 'rentman-availability-calendar'), 'success');
     }
 
+    public function handle_clear_log() {
+        if (!isset($_GET['rac_action']) || $_GET['rac_action'] !== 'clear_log') {
+            return;
+        }
+        if (!current_user_can('manage_options')) {
+            return;
+        }
+        check_admin_referer('rac_clear_log');
+
+        RAC_Logger::instance()->clear_log();
+        add_settings_error('rac_messages', 'rac_log_cleared', __('Debug log cleared.', 'rentman-availability-calendar'), 'success');
+    }
+
     public function render_settings_page() {
         if (!current_user_can('manage_options')) {
             return;
@@ -281,6 +322,9 @@ class RAC_Settings {
 
         $client = $this->get_api_client();
         $is_configured = $client->is_configured();
+        $logger = RAC_Logger::instance();
+        $debug_enabled = $logger->is_enabled();
+        $log_contents = $debug_enabled ? $logger->get_log_contents() : '';
         ?>
         <div class="wrap">
             <h1><?php echo esc_html(get_admin_page_title()); ?></h1>
@@ -301,6 +345,11 @@ class RAC_Settings {
                         <?php esc_html_e('Clear Cache', 'rentman-availability-calendar'); ?>
                     </a>
                 <?php endif; ?>
+                <?php if ($debug_enabled): ?>
+                    <a href="<?php echo esc_url(wp_nonce_url(add_query_arg('rac_action', 'clear_log', admin_url('admin.php?page=rentman-availability-calendar')), 'rac_clear_log')); ?>" class="button button-secondary">
+                        <?php esc_html_e('Clear Debug Log', 'rentman-availability-calendar'); ?>
+                    </a>
+                <?php endif; ?>
             </div>
 
             <form method="post" action="options.php">
@@ -310,6 +359,13 @@ class RAC_Settings {
                 submit_button();
                 ?>
             </form>
+
+            <?php if ($debug_enabled && $log_contents): ?>
+            <div class="rac-debug-log" style="margin-top: 30px; padding: 20px; background: #1e1e1e; border: 1px solid #d4d4d4; border-radius: 8px; border-top: 3px solid #c9a227;">
+                <h3 style="color: #c9a227; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 300; font-size: 1.1rem; margin-top: 0;"><?php esc_html_e('Debug Log', 'rentman-availability-calendar'); ?></h3>
+                <textarea readonly style="width:100%; min-height:400px; font-family:monospace; font-size:12px; background:#0d0d0d; color:#e0e0e0; border:1px solid #444; border-radius:4px; padding:12px;" rows="20"><?php echo esc_textarea($log_contents); ?></textarea>
+            </div>
+            <?php endif; ?>
 
             <div class="rac-legend-preview" style="margin-top: 30px; padding: 20px; background: #0a0a0a; border: 1px solid #d4d4d4; border-radius: 8px; border-top: 3px solid #c9a227;">
                 <h3 style="color: #c9a227; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 300; font-size: 1.1rem; margin-top: 0;"><?php esc_html_e('Color Legend', 'rentman-availability-calendar'); ?></h3>

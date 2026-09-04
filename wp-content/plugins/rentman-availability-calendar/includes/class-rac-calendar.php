@@ -179,23 +179,35 @@ class RAC_Calendar {
     }
 
     public function get_month_availability($year, $month) {
+        $logger = RAC_Logger::instance();
+        $logger->log('get_month_availability', ['year' => $year, 'month' => $month]);
+
         $client = new RAC_API_Client();
 
         if (!$client->is_configured()) {
+            $logger->log('API token not configured', ['year' => $year, 'month' => $month]);
             return new WP_Error('rac_not_configured', __('API token not configured.', 'rentman-availability-calendar'));
         }
 
         $projects = $client->get_projects_for_month($year, $month);
 
         if (is_wp_error($projects)) {
+            $logger->log('Failed to fetch projects', ['error' => $projects->get_error_message()]);
             return $projects;
         }
+
+        $logger->log('Projects received', ['count' => count($projects)]);
 
         $day_counts = [];
         $day_details = [];
 
         foreach ($projects as $project) {
             if (!$this->is_relevant_project($project)) {
+                $logger->log('Project skipped (not relevant)', [
+                    'name'   => isset($project['name']) ? $project['name'] : '',
+                    'type'   => $this->get_project_type($project),
+                    'status' => $this->get_project_status($project),
+                ]);
                 continue;
             }
 
@@ -224,6 +236,11 @@ class RAC_Calendar {
                 'type'     => sanitize_text_field($type),
             ];
         }
+
+        $logger->log('Relevant projects counted', [
+            'days_with_appointments' => count($day_counts),
+            'total_appointments'     => array_sum($day_counts),
+        ]);
 
         $days = [];
         $days_in_month = (int) gmdate('t', gmmktime(0, 0, 0, $month, 1, $year));
@@ -337,8 +354,11 @@ class RAC_Calendar {
         $cached = get_transient($cache_key);
 
         if ($cached !== false && is_array($cached)) {
+            RAC_Logger::instance()->log_cache('hit', $cache_key, ['status' => isset($cached['status']) ? $cached['status'] : '']);
             return $cached;
         }
+
+        RAC_Logger::instance()->log_cache('miss', $cache_key);
 
         $month_data = $this->get_month_availability($year, $month);
 
@@ -379,6 +399,8 @@ class RAC_Calendar {
             'message' => '',
             'details' => $details,
         ];
+
+        RAC_Logger::instance()->log_availability($normalized, $status, $count, ['details_count' => count($details)]);
 
         $cache_ttl = max(60, RAC_DEFAULT_CACHE_MINUTES * MINUTE_IN_SECONDS);
         set_transient($cache_key, $result, $cache_ttl);
