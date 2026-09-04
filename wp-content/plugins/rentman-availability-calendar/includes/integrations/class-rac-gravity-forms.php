@@ -42,6 +42,9 @@ class RAC_Gravity_Forms {
             'msg_available'     => isset($settings['gf_msg_available']) ? $settings['gf_msg_available'] : __('Deze datum is beschikbaar.', 'rentman-availability-calendar'),
             'msg_limited'       => isset($settings['gf_msg_limited']) ? $settings['gf_msg_limited'] : __('Voor deze datum is nog beperkte beschikbaarheid.', 'rentman-availability-calendar'),
             'msg_unavailable'   => isset($settings['gf_msg_unavailable']) ? $settings['gf_msg_unavailable'] : __('Helaas is deze datum niet beschikbaar.', 'rentman-availability-calendar'),
+            'date_format'       => isset($settings['gf_date_format']) ? $settings['gf_date_format'] : 'd/m/Y',
+            'msg_position'      => isset($settings['gf_msg_position']) ? $settings['gf_msg_position'] : 'below',
+            'msg_style'         => isset($settings['gf_msg_style']) ? $settings['gf_msg_style'] : 'full',
         ];
     }
 
@@ -82,14 +85,16 @@ class RAC_Gravity_Forms {
         wp_add_inline_script('rac-gf-script', sprintf(
             'window.racGfConfig = %s;',
             wp_json_encode([
-                'formId'       => $config['form_id'],
-                'dateFieldId'  => $config['date_field_id'],
+                'formId'           => $config['form_id'],
+                'dateFieldId'      => $config['date_field_id'],
                 'blockUnavailable' => $config['block_unavailable'],
-                'messages'     => [
+                'messages'         => [
                     'available'   => $config['msg_available'],
                     'limited'     => $config['msg_limited'],
                     'unavailable' => $config['msg_unavailable'],
                 ],
+                'msgPosition'      => $config['msg_position'],
+                'msgStyle'         => $config['msg_style'],
             ])
         ), 'before');
     }

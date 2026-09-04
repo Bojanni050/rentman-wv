@@ -415,10 +415,21 @@ class RAC_Calendar {
 
         $date_string = trim($date_string);
 
+        $settings = get_option(RAC_OPTION_KEY, []);
+        $configured_format = isset($settings['gf_date_format']) ? $settings['gf_date_format'] : 'd/m/Y';
+
+        if ($configured_format !== 'auto') {
+            $dt = DateTime::createFromFormat($configured_format, $date_string);
+            if ($dt !== false) {
+                $dt->setTime(0, 0, 0);
+                return $dt->format('Y-m-d');
+            }
+        }
+
         $formats = [
-            'Y-m-d',
             'd/m/Y',
             'm/d/Y',
+            'Y-m-d',
             'd-m-Y',
             'm-d-Y',
             'Y/m/d',

@@ -143,6 +143,30 @@ class RAC_Settings {
             'rac_gf_section'
         );
 
+        add_settings_field(
+            'gf_date_format',
+            __('Expected Date Format', 'rentman-availability-calendar'),
+            [$this, 'render_gf_date_format_field'],
+            'rentman-availability-calendar',
+            'rac_gf_section'
+        );
+
+        add_settings_field(
+            'gf_msg_position',
+            __('Message Position', 'rentman-availability-calendar'),
+            [$this, 'render_gf_msg_position_field'],
+            'rentman-availability-calendar',
+            'rac_gf_section'
+        );
+
+        add_settings_field(
+            'gf_msg_style',
+            __('Message Style', 'rentman-availability-calendar'),
+            [$this, 'render_gf_msg_style_field'],
+            'rentman-availability-calendar',
+            'rac_gf_section'
+        );
+
         add_settings_section(
             'rac_debug_section',
             __('Debug Logging', 'rentman-availability-calendar'),
@@ -177,6 +201,15 @@ class RAC_Settings {
         $sanitized['gf_msg_available'] = isset($input['gf_msg_available']) ? sanitize_text_field($input['gf_msg_available']) : __('Deze datum is beschikbaar.', 'rentman-availability-calendar');
         $sanitized['gf_msg_limited'] = isset($input['gf_msg_limited']) ? sanitize_text_field($input['gf_msg_limited']) : __('Voor deze datum is nog beperkte beschikbaarheid.', 'rentman-availability-calendar');
         $sanitized['gf_msg_unavailable'] = isset($input['gf_msg_unavailable']) ? sanitize_text_field($input['gf_msg_unavailable']) : __('Helaas is deze datum niet beschikbaar.', 'rentman-availability-calendar');
+
+        $valid_formats = ['d/m/Y', 'm/d/Y', 'Y-m-d', 'd-m-Y', 'm-d-Y', 'Y/m/d', 'auto'];
+        $sanitized['gf_date_format'] = isset($input['gf_date_format']) && in_array($input['gf_date_format'], $valid_formats, true) ? $input['gf_date_format'] : 'd/m/Y';
+
+        $valid_positions = ['below', 'above', 'tooltip'];
+        $sanitized['gf_msg_position'] = isset($input['gf_msg_position']) && in_array($input['gf_msg_position'], $valid_positions, true) ? $input['gf_msg_position'] : 'below';
+
+        $valid_styles = ['full', 'dot', 'text'];
+        $sanitized['gf_msg_style'] = isset($input['gf_msg_style']) && in_array($input['gf_msg_style'], $valid_styles, true) ? $input['gf_msg_style'] : 'full';
 
         $sanitized['debug_logging'] = isset($input['debug_logging']) ? (bool) $input['debug_logging'] : false;
 
@@ -258,6 +291,58 @@ class RAC_Settings {
         $settings = get_option(RAC_OPTION_KEY, []);
         $msg = isset($settings['gf_msg_unavailable']) ? $settings['gf_msg_unavailable'] : __('Helaas is deze datum niet beschikbaar.', 'rentman-availability-calendar');
         echo '<input type="text" name="' . esc_attr(RAC_OPTION_KEY) . '[gf_msg_unavailable]" value="' . esc_attr($msg) . '" class="regular-text" />';
+    }
+
+    public function render_gf_date_format_field() {
+        $settings = get_option(RAC_OPTION_KEY, []);
+        $current = isset($settings['gf_date_format']) ? $settings['gf_date_format'] : 'd/m/Y';
+        $formats = [
+            'd/m/Y'  => '22/09/2026 (European: day/month/year)',
+            'm/d/Y'  => '09/22/2026 (US: month/day/year)',
+            'Y-m-d'  => '2026-09-22 (ISO: year-month-day)',
+            'd-m-Y'  => '22-09-2026 (European with dashes)',
+            'm-d-Y'  => '09-22-2026 (US with dashes)',
+            'Y/m/d'  => '2026/09/22 (ISO with slashes)',
+            'auto'   => 'Auto-detect (tries all formats, European first)',
+        ];
+        echo '<select name="' . esc_attr(RAC_OPTION_KEY) . '[gf_date_format]">';
+        foreach ($formats as $value => $label) {
+            echo '<option value="' . esc_attr($value) . '" ' . selected($current, $value, false) . '>' . esc_html($label) . '</option>';
+        }
+        echo '</select>';
+        echo '<p class="description">' . esc_html__('Set the date format your visitors use in the Gravity Forms date field. This avoids ambiguity (e.g. 05/06/2026 could be May 6 or June 5).', 'rentman-availability-calendar') . '</p>';
+    }
+
+    public function render_gf_msg_position_field() {
+        $settings = get_option(RAC_OPTION_KEY, []);
+        $current = isset($settings['gf_msg_position']) ? $settings['gf_msg_position'] : 'below';
+        $positions = [
+            'below'   => __('Below the date field', 'rentman-availability-calendar'),
+            'above'   => __('Above the date field', 'rentman-availability-calendar'),
+            'tooltip' => __('Tooltip on hover over the date field', 'rentman-availability-calendar'),
+        ];
+        echo '<select name="' . esc_attr(RAC_OPTION_KEY) . '[gf_msg_position]">';
+        foreach ($positions as $value => $label) {
+            echo '<option value="' . esc_attr($value) . '" ' . selected($current, $value, false) . '>' . esc_html($label) . '</option>';
+        }
+        echo '</select>';
+        echo '<p class="description">' . esc_html__('Where the availability message appears relative to the date field.', 'rentman-availability-calendar') . '</p>';
+    }
+
+    public function render_gf_msg_style_field() {
+        $settings = get_option(RAC_OPTION_KEY, []);
+        $current = isset($settings['gf_msg_style']) ? $settings['gf_msg_style'] : 'full';
+        $styles = [
+            'full' => __('Colored dot + message text', 'rentman-availability-calendar'),
+            'dot'  => __('Colored dot only (no text)', 'rentman-availability-calendar'),
+            'text' => __('Message text only (no dot)', 'rentman-availability-calendar'),
+        ];
+        echo '<select name="' . esc_attr(RAC_OPTION_KEY) . '[gf_msg_style]">';
+        foreach ($styles as $value => $label) {
+            echo '<option value="' . esc_attr($value) . '" ' . selected($current, $value, false) . '>' . esc_html($label) . '</option>';
+        }
+        echo '</select>';
+        echo '<p class="description">' . esc_html__('How the availability message is displayed.', 'rentman-availability-calendar') . '</p>';
     }
 
     public function render_debug_section_info() {

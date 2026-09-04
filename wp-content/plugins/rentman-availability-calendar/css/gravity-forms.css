@@ -84,6 +84,47 @@
     background: #ef4444;
 }
 
+/* Style: dot only */
+.rentman-availability--dot {
+    padding: 4px 8px;
+    gap: 0;
+}
+
+/* Style: text only */
+.rentman-availability--text .rentman-availability__dot {
+    display: none;
+}
+
+/* Position: above field */
+.rentman-availability--above {
+    margin-top: 0;
+    margin-bottom: 8px;
+}
+
+/* Position: tooltip */
+.rentman-availability--tooltip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    max-width: 320px;
+    pointer-events: none;
+}
+
+.rentman-availability--tooltip::before {
+    content: '';
+    position: absolute;
+    top: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-bottom-color: #d4d4d4;
+    border-top: 0;
+}
+
 form.rentman-gf-blocked input[type="submit"],
 form.rentman-gf-blocked button[type="submit"] {
     opacity: 0.5;
@@ -101,5 +142,9 @@ form.rentman-gf-blocked button[type="submit"]:after {
     .rentman-availability {
         font-size: 0.8rem;
         padding: 6px 10px;
+    }
+
+    .rentman-availability--tooltip {
+        max-width: 260px;
     }
 }
