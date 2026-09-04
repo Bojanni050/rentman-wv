@@ -86,8 +86,21 @@ class RAC_Logger {
         $log_dir = trailingslashit($upload_dir['basedir']) . 'rac-logs/';
         if (!file_exists($log_dir)) {
             wp_mkdir_p($log_dir);
+            $this->protect_log_dir($log_dir);
         }
         return $log_dir . 'debug.log';
+    }
+
+    private function protect_log_dir($log_dir) {
+        $htaccess = $log_dir . '.htaccess';
+        if (!file_exists($htaccess)) {
+            @file_put_contents($htaccess, "Order deny,allow\nDeny from all\n");
+        }
+
+        $index = $log_dir . 'index.php';
+        if (!file_exists($index)) {
+            @file_put_contents($index, "<?php // Silence is golden.\n");
+        }
     }
 
     public function get_log_file_url() {
