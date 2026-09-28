@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.3] - unreleased
+
+### Changed
+- Scoped Gravity Forms availability CSS to `.gform_wrapper` selectors for higher specificity, so no extra site CSS is needed
+- Increased availability block font-size from 0.75rem to a fixed 13px (12px on mobile) for better readability on sites with a small base font-size
+
 All notable changes to the Rentman Availability Calendar plugin will be documented in this file.
 
 ## [1.0.0] - 2024-09-04
