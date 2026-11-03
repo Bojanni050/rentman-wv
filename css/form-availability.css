@@ -1,4 +1,9 @@
-.gform_wrapper .rentman-availability {
+/*
+ * Rentman availability message for form date fields (Gravity Forms + Fluent Forms).
+ * :is(...) keeps the specificity of the old .gform_wrapper scope (one class),
+ * and "body" also covers the tooltip, which is appended to <body>.
+ */
+:is(.gform_wrapper, .fluentform, body) .rentman-availability {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -10,7 +15,7 @@
     transition: opacity 0.2s ease;
 }
 
-.gform_wrapper .rentman-availability__dot {
+:is(.gform_wrapper, .fluentform, body) .rentman-availability__dot {
     display: inline-block;
     width: 10px;
     height: 10px;
@@ -19,11 +24,11 @@
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
-.gform_wrapper .rentman-availability__text {
+:is(.gform_wrapper, .fluentform, body) .rentman-availability__text {
     line-height: 1.4;
 }
 
-.gform_wrapper .rentman-availability__spinner {
+:is(.gform_wrapper, .fluentform, body) .rentman-availability__spinner {
     display: inline-block;
     width: 14px;
     height: 14px;
@@ -38,71 +43,71 @@
     to { transform: rotate(360deg); }
 }
 
-.gform_wrapper .rentman-availability--loading {
+:is(.gform_wrapper, .fluentform, body) .rentman-availability--loading {
     background: #f5f5f5;
     border: 1px solid #d4d4d4;
     color: #8a8a8a;
 }
 
-.gform_wrapper .rentman-availability--available {
+:is(.gform_wrapper, .fluentform, body) .rentman-availability--available {
     background: #dcfce7;
     border: 1px solid #22c55e;
     color: #15803d;
 }
 
-.gform_wrapper .rentman-availability--available .rentman-availability__dot {
+:is(.gform_wrapper, .fluentform, body) .rentman-availability--available .rentman-availability__dot {
     background: #22c55e;
 }
 
-.gform_wrapper .rentman-availability--limited {
+:is(.gform_wrapper, .fluentform, body) .rentman-availability--limited {
     background: #fef3c7;
     border: 1px solid #f59e0b;
     color: #b45309;
 }
 
-.gform_wrapper .rentman-availability--limited .rentman-availability__dot {
+:is(.gform_wrapper, .fluentform, body) .rentman-availability--limited .rentman-availability__dot {
     background: #f59e0b;
 }
 
-.gform_wrapper .rentman-availability--unavailable {
+:is(.gform_wrapper, .fluentform, body) .rentman-availability--unavailable {
     background: #fee2e2;
     border: 1px solid #ef4444;
     color: #b91c1c;
 }
 
-.gform_wrapper .rentman-availability--unavailable .rentman-availability__dot {
+:is(.gform_wrapper, .fluentform, body) .rentman-availability--unavailable .rentman-availability__dot {
     background: #ef4444;
 }
 
-.gform_wrapper .rentman-availability--error {
+:is(.gform_wrapper, .fluentform, body) .rentman-availability--error {
     background: #fee2e2;
     border: 1px solid #ef4444;
     color: #b91c1c;
 }
 
-.gform_wrapper .rentman-availability--error .rentman-availability__dot {
+:is(.gform_wrapper, .fluentform, body) .rentman-availability--error .rentman-availability__dot {
     background: #ef4444;
 }
 
 /* Style: dot only */
-.gform_wrapper .rentman-availability--dot {
+:is(.gform_wrapper, .fluentform, body) .rentman-availability--dot {
     padding: 4px 8px;
     gap: 0;
 }
 
 /* Style: text only */
-.gform_wrapper .rentman-availability--text .rentman-availability__dot {
+:is(.gform_wrapper, .fluentform, body) .rentman-availability--text .rentman-availability__dot {
     display: none;
 }
 
 /* Position: above field */
-.gform_wrapper .rentman-availability--above {
+:is(.gform_wrapper, .fluentform, body) .rentman-availability--above {
     margin-top: 0;
     margin-bottom: 8px;
 }
 
 /* Position: tooltip */
-.gform_wrapper .rentman-availability--tooltip {
+:is(.gform_wrapper, .fluentform, body) .rentman-availability--tooltip {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -114,7 +119,7 @@
     pointer-events: none;
 }
 
-.gform_wrapper .rentman-availability--tooltip::before {
+:is(.gform_wrapper, .fluentform, body) .rentman-availability--tooltip::before {
     content: '';
     position: absolute;
     top: -6px;
@@ -125,29 +130,34 @@
     border-top: 0;
 }
 
-form.rentman-gf-blocked input[type="submit"],
-form.rentman-gf-blocked button[type="submit"] {
+form.rentman-form-blocked input[type="submit"],
+form.rentman-form-blocked button[type="submit"] {
     opacity: 0.5;
     pointer-events: none;
     cursor: not-allowed;
 }
 
-form.rentman-gf-blocked input[type="submit"]:after,
-form.rentman-gf-blocked button[type="submit"]:after {
+form.rentman-form-blocked input[type="submit"]:after,
+form.rentman-form-blocked button[type="submit"]:after {
     content: " (niet beschikbaar)";
     font-size: 0.7em;
     padding-left: 4px;
 }
 
 @media (max-width: 600px) {
-    .gform_wrapper .rentman-availability {
+    :is(.gform_wrapper, .fluentform, body) .rentman-availability {
         font-size: 12px;
         padding: 8px 12px;
     }
 
-    .gform_wrapper .rentman-availability--tooltip {
+    :is(.gform_wrapper, .fluentform, body) .rentman-availability--tooltip {
         max-width: 260px;
         font-size: 12px;
         padding: 10px 14px;
     }
+}
+
+/* Fluent Forms: keep the message inside the field group spacing */
+.fluentform .ff-el-group .rentman-availability {
+    margin-top: 10px;
 }

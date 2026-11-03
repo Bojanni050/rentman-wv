@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: Rentman Availability Calendar
- * Description: Displays a color-coded availability calendar based on appointment counts from the Rentman API. 0 appointments = green, 1-2 = orange, 3+ = red.
- * Version: 1.3
+ * Description: Displays a color-coded availability calendar based on appointment counts from the Rentman API (0 = green, 1-2 = orange, 3+ = red), with realtime date checks in Gravity Forms and Fluent Forms.
+ * Version: 1.4
  * Author: Bojan Davidovič / White Vision
  * License: GPL-2.0-or-later
  * Text Domain: rentman-availability-calendar
@@ -12,7 +12,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('RAC_VERSION', '1.2');
+define('RAC_VERSION', '1.4');
 define('RAC_PLUGIN_FILE', __FILE__);
 define('RAC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('RAC_PLUGIN_URL', plugin_dir_url(__FILE__));
@@ -32,9 +32,13 @@ require_once RAC_PLUGIN_DIR . 'includes/class-rac-logger.php';
 require_once RAC_PLUGIN_DIR . 'includes/class-rac-api-client.php';
 require_once RAC_PLUGIN_DIR . 'includes/class-rac-settings.php';
 require_once RAC_PLUGIN_DIR . 'includes/class-rac-calendar.php';
+require_once RAC_PLUGIN_DIR . 'includes/class-rac-form-availability.php';
 // Elementor widget class is loaded lazily in register_elementor_widget() to avoid
 // a fatal error when Elementor is not active.
+// Integration classes only reference their form plugin inside hooks, so loading
+// the files is safe; they are only instantiated when that plugin is active.
 require_once RAC_PLUGIN_DIR . 'includes/integrations/class-rac-gravity-forms.php';
+require_once RAC_PLUGIN_DIR . 'includes/integrations/class-rac-fluent-forms.php';
 
 class Rentman_Availability_Calendar {
 
@@ -58,7 +62,14 @@ class Rentman_Availability_Calendar {
     public function init() {
         RAC_Settings::instance();
         RAC_Calendar::instance();
-        RAC_Gravity_Forms::instance();
+        RAC_Form_Availability::instance();
+
+        if (RAC_Gravity_Forms::is_plugin_active()) {
+            RAC_Gravity_Forms::instance();
+        }
+        if (RAC_Fluent_Forms::is_plugin_active()) {
+            RAC_Fluent_Forms::instance();
+        }
     }
 
     public function register_elementor_widget($widgets_manager) {

@@ -82,33 +82,9 @@ class RAC_Settings {
 
         add_settings_section(
             'rac_gf_section',
-            __('Gravity Forms Integration', 'rentman-availability-calendar'),
-            [$this, 'render_gf_section_info'],
+            __('Form Availability Check (all form plugins)', 'rentman-availability-calendar'),
+            [$this, 'render_forms_section_info'],
             'rentman-availability-calendar'
-        );
-
-        add_settings_field(
-            'gf_enabled',
-            __('Enable Integration', 'rentman-availability-calendar'),
-            [$this, 'render_gf_enabled_field'],
-            'rentman-availability-calendar',
-            'rac_gf_section'
-        );
-
-        add_settings_field(
-            'gf_form_id',
-            __('Gravity Forms Form ID', 'rentman-availability-calendar'),
-            [$this, 'render_gf_form_id_field'],
-            'rentman-availability-calendar',
-            'rac_gf_section'
-        );
-
-        add_settings_field(
-            'gf_date_field_id',
-            __('Date Field ID', 'rentman-availability-calendar'),
-            [$this, 'render_gf_date_field_id_field'],
-            'rentman-availability-calendar',
-            'rac_gf_section'
         );
 
         add_settings_field(
@@ -168,6 +144,68 @@ class RAC_Settings {
         );
 
         add_settings_section(
+            'rac_gf_forms_section',
+            __('Gravity Forms', 'rentman-availability-calendar'),
+            [$this, 'render_gf_section_info'],
+            'rentman-availability-calendar'
+        );
+
+        add_settings_field(
+            'gf_enabled',
+            __('Enable Integration', 'rentman-availability-calendar'),
+            [$this, 'render_gf_enabled_field'],
+            'rentman-availability-calendar',
+            'rac_gf_forms_section'
+        );
+
+        add_settings_field(
+            'gf_form_id',
+            __('Gravity Forms Form ID', 'rentman-availability-calendar'),
+            [$this, 'render_gf_form_id_field'],
+            'rentman-availability-calendar',
+            'rac_gf_forms_section'
+        );
+
+        add_settings_field(
+            'gf_date_field_id',
+            __('Date Field ID', 'rentman-availability-calendar'),
+            [$this, 'render_gf_date_field_id_field'],
+            'rentman-availability-calendar',
+            'rac_gf_forms_section'
+        );
+
+        add_settings_section(
+            'rac_ff_section',
+            __('Fluent Forms', 'rentman-availability-calendar'),
+            [$this, 'render_ff_section_info'],
+            'rentman-availability-calendar'
+        );
+
+        add_settings_field(
+            'ff_enabled',
+            __('Enable Integration', 'rentman-availability-calendar'),
+            [$this, 'render_ff_enabled_field'],
+            'rentman-availability-calendar',
+            'rac_ff_section'
+        );
+
+        add_settings_field(
+            'ff_form_id',
+            __('Fluent Forms Form ID', 'rentman-availability-calendar'),
+            [$this, 'render_ff_form_id_field'],
+            'rentman-availability-calendar',
+            'rac_ff_section'
+        );
+
+        add_settings_field(
+            'ff_date_field',
+            __('Date Field Name', 'rentman-availability-calendar'),
+            [$this, 'render_ff_date_field_field'],
+            'rentman-availability-calendar',
+            'rac_ff_section'
+        );
+
+        add_settings_section(
             'rac_debug_section',
             __('Debug Logging', 'rentman-availability-calendar'),
             [$this, 'render_debug_section_info'],
@@ -197,6 +235,9 @@ class RAC_Settings {
         $sanitized['gf_enabled'] = isset($input['gf_enabled']) ? (bool) $input['gf_enabled'] : false;
         $sanitized['gf_form_id'] = isset($input['gf_form_id']) ? absint($input['gf_form_id']) : 0;
         $sanitized['gf_date_field_id'] = isset($input['gf_date_field_id']) ? absint($input['gf_date_field_id']) : 0;
+        $sanitized['ff_enabled'] = isset($input['ff_enabled']) ? (bool) $input['ff_enabled'] : false;
+        $sanitized['ff_form_id'] = isset($input['ff_form_id']) ? absint($input['ff_form_id']) : 0;
+        $sanitized['ff_date_field'] = isset($input['ff_date_field']) ? preg_replace('/[^A-Za-z0-9_\-]/', '', (string) $input['ff_date_field']) : '';
         $sanitized['gf_block_unavailable'] = isset($input['gf_block_unavailable']) ? (bool) $input['gf_block_unavailable'] : false;
         $sanitized['gf_msg_available'] = isset($input['gf_msg_available']) ? sanitize_text_field($input['gf_msg_available']) : __('Deze datum is beschikbaar.', 'rentman-availability-calendar');
         $sanitized['gf_msg_limited'] = isset($input['gf_msg_limited']) ? sanitize_text_field($input['gf_msg_limited']) : __('Voor deze datum is nog beperkte beschikbaarheid.', 'rentman-availability-calendar');
@@ -241,12 +282,42 @@ class RAC_Settings {
         echo '<p class="description">' . esc_html__('Add this shortcode to any page or post to display the availability calendar.', 'rentman-availability-calendar') . '</p>';
     }
 
+    public function render_forms_section_info() {
+        echo '<p>' . esc_html__('These settings apply to every form integration below (Gravity Forms and Fluent Forms): realtime availability check when a visitor selects an event date.', 'rentman-availability-calendar') . '</p>';
+    }
+
     public function render_gf_section_info() {
-        $gf_active = class_exists('GFForms');
-        echo '<p>' . esc_html__('Configure the Gravity Forms integration for realtime availability checks when a visitor selects an event date.', 'rentman-availability-calendar') . '</p>';
-        if (!$gf_active) {
-            echo '<div class="notice notice-warning inline"><p>' . esc_html__('Gravity Forms is not active. Install and activate the Gravity Forms plugin to use this integration.', 'rentman-availability-calendar') . '</p></div>';
+        echo '<p>' . esc_html__('Realtime availability check in a Gravity Forms date field.', 'rentman-availability-calendar') . '</p>';
+        if (!RAC_Gravity_Forms::is_plugin_active()) {
+            echo '<div class="notice notice-info inline"><p>' . esc_html__('Gravity Forms is not active. These settings are kept but have no effect until Gravity Forms is activated.', 'rentman-availability-calendar') . '</p></div>';
         }
+    }
+
+    public function render_ff_section_info() {
+        echo '<p>' . esc_html__('Realtime availability check in a Fluent Forms date field (datepicker).', 'rentman-availability-calendar') . '</p>';
+        if (!RAC_Fluent_Forms::is_plugin_active()) {
+            echo '<div class="notice notice-info inline"><p>' . esc_html__('Fluent Forms is not active. These settings are kept but have no effect until Fluent Forms is activated.', 'rentman-availability-calendar') . '</p></div>';
+        }
+    }
+
+    public function render_ff_enabled_field() {
+        $settings = get_option(RAC_OPTION_KEY, []);
+        $enabled = isset($settings['ff_enabled']) ? (bool) $settings['ff_enabled'] : false;
+        echo '<label><input type="checkbox" name="' . esc_attr(RAC_OPTION_KEY) . '[ff_enabled]" value="1" ' . checked($enabled, true, false) . ' /> ' . esc_html__('Enable realtime availability check in Fluent Forms', 'rentman-availability-calendar') . '</label>';
+    }
+
+    public function render_ff_form_id_field() {
+        $settings = get_option(RAC_OPTION_KEY, []);
+        $form_id = isset($settings['ff_form_id']) ? $settings['ff_form_id'] : 0;
+        echo '<input type="number" name="' . esc_attr(RAC_OPTION_KEY) . '[ff_form_id]" value="' . esc_attr($form_id) . '" class="small-text" min="0" />';
+        echo '<p class="description">' . esc_html__('The ID of the Fluent Forms form (the number in [fluentform id="3"]). Use 0 to apply to all forms.', 'rentman-availability-calendar') . '</p>';
+    }
+
+    public function render_ff_date_field_field() {
+        $settings = get_option(RAC_OPTION_KEY, []);
+        $name = isset($settings['ff_date_field']) ? $settings['ff_date_field'] : '';
+        echo '<input type="text" name="' . esc_attr(RAC_OPTION_KEY) . '[ff_date_field]" value="' . esc_attr($name) . '" class="regular-text" placeholder="datetime" />';
+        echo '<p class="description">' . esc_html__('The "Name Attribute" of the date field in Fluent Forms (e.g. datetime). Leave empty to auto-detect all date fields.', 'rentman-availability-calendar') . '</p>';
     }
 
     public function render_gf_enabled_field() {
@@ -310,7 +381,7 @@ class RAC_Settings {
             echo '<option value="' . esc_attr($value) . '" ' . selected($current, $value, false) . '>' . esc_html($label) . '</option>';
         }
         echo '</select>';
-        echo '<p class="description">' . esc_html__('Set the date format your visitors use in the Gravity Forms date field. This avoids ambiguity (e.g. 05/06/2026 could be May 6 or June 5).', 'rentman-availability-calendar') . '</p>';
+        echo '<p class="description">' . esc_html__('Set the date format your visitors use in the form date field (Fluent Forms default: d/m/Y). This avoids ambiguity (e.g. 05/06/2026 could be May 6 or June 5).', 'rentman-availability-calendar') . '</p>';
     }
 
     public function render_gf_msg_position_field() {

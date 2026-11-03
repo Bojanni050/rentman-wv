@@ -13,7 +13,7 @@
 ## Features
 
 ✅ **Color-coded Calendar** – Visual availability indicator based on appointment counts
-✅ **Gravity Forms Integration** – Realtime availability checks when users select dates
+✅ **Gravity Forms & Fluent Forms Integration** – Realtime availability checks when users select dates (each only active when that form plugin is installed)
 ✅ **Elementor Widget** – Drag-and-drop widget for Elementor page builder
 ✅ **Shortcode Support** – Easy embedding with `[rentman_calendar]` shortcode
 ✅ **Caching** – Configurable cache duration to reduce API calls
@@ -76,11 +76,28 @@ Add the calendar to any page or post using the shortcode:
 3. Drag the widget to your page
 4. Configure the widget settings (year, month, styling)
 
-### Gravity Forms Integration
+### Form Integrations (Gravity Forms / Fluent Forms)
+
+Messages, date format, message position/style and "block unavailable dates" are shared settings
+(section **Form Availability Check**). Each form plugin has its own section to switch it on and
+pick the form and date field. An integration is only loaded when its form plugin is active, so the
+plugin works on sites with only Gravity Forms, only Fluent Forms, both, or neither.
+
+#### Fluent Forms
+
+1. Go to **Rentman Calendar > Fluent Forms**
+2. Enable the integration
+3. Set the **Form ID** (the number in `[fluentform id="3"]`, 0 = all forms)
+4. Set the **Date Field Name** (the field's *Name Attribute*, e.g. `datetime`; empty = auto-detect)
+5. Set **Expected Date Format** to the datepicker format of the field (Fluent Forms default `d/m/Y`)
+
+When blocking is on, a fully booked date is rejected server-side with the "unavailable" message on the date field.
+
+#### Gravity Forms
 
 To enable realtime availability checks in Gravity Forms:
 
-1. Go to **Settings > Rentman Calendar > Gravity Forms Integration**
+1. Go to **Rentman Calendar > Gravity Forms**
 2. Enable the integration
 3. Set the **Form ID** (use 0 for all forms)
 4. Set the **Date Field ID** (use 0 to auto-detect)
@@ -213,18 +230,20 @@ rentman-availability-calendar/
 ├── CONTRIBUTING.md                    # Contribution guidelines
 ├── includes/
 │   ├── class-rac-api-client.php      # API client for Rentman
+│   ├── class-rac-form-availability.php # Shared form date check (AJAX, messages, assets)
 │   ├── class-rac-calendar.php         # Calendar rendering and logic
 │   ├── class-rac-logger.php           # Debug logging
 │   ├── class-rac-settings.php         # Plugin settings
 │   ├── class-rac-elementor-widget.php # Elementor widget
 │   └── integrations/
-│       └── class-rac-gravity-forms.php # Gravity Forms integration
+│       ├── class-rac-gravity-forms.php # Gravity Forms integration
+│       └── class-rac-fluent-forms.php  # Fluent Forms integration
 ├── js/
 │   ├── calendar.js                    # Frontend calendar JavaScript
-│   └── gravity-forms.js               # Gravity Forms integration JS
+│   └── form-availability.js           # Date check JS (Gravity Forms + Fluent Forms)
 └── css/
     ├── calendar.css                   # Calendar styles
-    └── rentman-availability-calendar-gravity-forms.css              # Gravity Forms integration styles
+    └── form-availability.css          # Date check message styles
 ```
 
 ## Contributing

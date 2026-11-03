@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.4] - 2026-11-03
+
+### Added
+- Fluent Forms integration: realtime availability check on the date field (flatpickr datepicker or native date input) and server-side blocking via `fluentform/validation_errors`
+- Settings section "Fluent Forms" (enable, form ID, date field name; empty = auto-detect date fields)
+
+### Changed
+- Shared logic moved to `RAC_Form_Availability` (AJAX endpoint, messages, assets); integrations only decide which form/field to watch
+- Gravity Forms and Fluent Forms integrations are only loaded when that plugin is active; the plugin no longer depends on Gravity Forms
+- Front-end assets renamed to `js/form-availability.js` and `css/form-availability.css` (work for both form plugins); the old `js/gravity-forms.js` and `css/rentman-availability-calendar-gravity-forms.css` are no longer used
+- Settings page: shared messages/format/position in one section, separate sections per form plugin. Existing `gf_*` options are kept, so no reconfiguration is needed
+- `RAC_VERSION` now matches the plugin header (1.4)
+
+### Fixed
+- Gravity Forms: "Block unavailable dates" now really blocks the submission (uses `gform_validation` and marks the date field invalid); before it only added a message to the error summary of an already failing form
+- Tooltip messages now get their styling (the tooltip is appended to `<body>`, outside the form wrapper)
+
 ## [1.3] - unreleased
 
 ### Changed
